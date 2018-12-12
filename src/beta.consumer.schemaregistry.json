@@ -1,0 +1,4 @@
+﻿{
+  "schema.registry.url": "localhost:9093" // custom port (localkafka)
+  //"schema.registry.url": "localhost:8081"
+}

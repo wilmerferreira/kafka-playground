@@ -1,0 +1,7 @@
+﻿{
+  "auto.offset.reset": "earliest",
+  "bootstrap.servers": "localhost:9092",
+  "client.id": "AppDomain.CurrentDomain.FriendlyName",
+  "schema.registry.url": "localhost:9093",
+  "group.id": "console.consumer"
+}

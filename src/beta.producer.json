@@ -1,0 +1,5 @@
+﻿{
+  "bootstrap.servers": "localhost:9092",
+  "retry.backoff.ms": 60000,
+  "request.timeout.ms": 30000
+}

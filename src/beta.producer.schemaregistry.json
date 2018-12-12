@@ -1,0 +1,7 @@
+﻿{
+  "avro.serializer.auto.register.schemas": true,
+  "avro.serializer.buffer.bytes": 50,
+  "schema.registry.max.cached.schemas": 10,
+  "schema.registry.request.timeout.ms": 5000,
+  "schema.registry.url": "localhost:9093"
+}

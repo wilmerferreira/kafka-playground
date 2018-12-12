@@ -1,1 +1,1 @@
-# kafka-playground
+# Kafka Playground

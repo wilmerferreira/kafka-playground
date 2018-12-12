@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.1</TargetFramework>
+    <AssemblyName>KafkaPlayground.Beta.Publisher</AssemblyName>
+    <RootNamespace>KafkaPlayground.Beta.Publisher</RootNamespace>
+    <PackageId>KafkaPlayground.Beta.Publisher</PackageId>
+    <StartupObject>KafkaPlayground.Beta.Publisher.BetaPublisher</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include="..\beta.producer.json">
+      <Link>beta.producer.json</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\beta.producer.schemaregistry.json">
+      <Link>beta.producer.schemaregistry.json</Link>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Confluent.Kafka.Avro" Version="1.0.0-beta2" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="3.1.2-dev-00779" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KafkaPlayground.Beta.Messages\KafkaPlayground.Beta.Messages.csproj" />
+  </ItemGroup>
+
+</Project>
