@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\KafkaPlayground.Beta.Messages\KafkaPlayground.Beta.Messages.csproj" />
+    <ProjectReference Include="..\KafkaPlayground.Common\KafkaPlayground.Common.csproj" />
   </ItemGroup>
 
 </Project>

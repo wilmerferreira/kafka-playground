@@ -17,4 +17,9 @@
     <PackageReference Include="Serilog.Sinks.Console" Version="3.1.2-dev-00779" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\KafkaPlayground.Common\KafkaPlayground.Common.csproj" />
+    <ProjectReference Include="..\KafkaPlayground.Legacy.Messages\KafkaPlayground.Legacy.Messages.csproj" />
+  </ItemGroup>
+
 </Project>

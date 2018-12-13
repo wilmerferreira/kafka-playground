@@ -1,5 +1,6 @@
 ﻿using Confluent.Kafka;
 using Confluent.Kafka.Serialization;
+using KafkaPlayground.Common;
 using Newtonsoft.Json;
 using Serilog;
 using Serilog.Core;
@@ -18,40 +19,52 @@ namespace KafkaPlayground.Legacy.Subscriber
             new LoggerConfiguration()
                 .MinimumLevel.ControlledBy(new LoggingLevelSwitch
                 {
-                    MinimumLevel = LogEventLevel.Debug
+                    MinimumLevel = LogEventLevel.Information
                 })
                 .WriteTo.Console()
                 .CreateLogger();
 
-        private static readonly string[] Topics = { "kafka.playground.legacy.test" };
-        private static readonly TimeSpan SleepMilliseconds = TimeSpan.FromSeconds(10);
+        private static readonly CancellationTokenSource CancellationTokenSource = new CancellationTokenSource();
+        private static readonly TimeSpan ConsumeTimeout = TimeSpan.FromMilliseconds(100);
+        private static readonly TimeSpan Delay = TimeSpan.FromSeconds(1);
+        private static readonly string Topic = Topics.DefaultTopic;
 
-        static void Main(string[] args)
+        private static void Main()
         {
             Console.Title = AppDomain.CurrentDomain.FriendlyName;
 
-            //ConsumeAutoCommit();
-            //ConsumeCommitAll();
-            ConsumeCommitLast();
+            Console.CancelKeyPress += (_, e) =>
+            {
+                e.Cancel = true; // prevent the process from terminating.
+                CancellationTokenSource.Cancel();
+            };
+
+            //var autoCommitConsumer = CreateConsumer<long, string>(enableAutoCommit: true);
+            var manualCommitConsumer = CreateConsumer<long, string>(enableAutoCommit: false);
+
+            Thread.Sleep(Delay);
+
+            while (!CancellationTokenSource.Token.IsCancellationRequested)
+            {
+                //ConsumeAutoCommit(autoCommitConsumer);
+                //ConsumeCommitAll(manualCommitConsumer);
+                ConsumeCommitLast(manualCommitConsumer);
+
+                Thread.Sleep(Delay);
+            }
 
             Console.ReadKey();
         }
 
-        private static void ConsumeAutoCommit()
+        private static void ConsumeAutoCommit(Consumer<long, string> consumer)
         {
             var start = DateTime.Now;
 
-            var consumer = CreateConsumer<long, string>(autoCommit: true);
-
-            Thread.Sleep(SleepMilliseconds);
-
             var messages = new List<Message<long, string>>();
 
-            while (consumer.Consume(out var message, TimeSpan.FromSeconds(5)))
+            while (consumer.Consume(out var message, ConsumeTimeout))
             {
-                Log.Debug("Message received ({0})", message.TopicPartitionOffset);
-                Log.Verbose("\tKey: {0}", message.Key);
-                Log.Verbose("\tValue: {0}", message.Value);
+                Print(message);
 
                 messages.Add(message);
             }
@@ -59,21 +72,15 @@ namespace KafkaPlayground.Legacy.Subscriber
             Log.Information("{0}: {1} messages consumed, elapsed {2}", nameof(ConsumeAutoCommit), messages.Count, DateTime.Now.Subtract(start));
         }
 
-        private static void ConsumeCommitAll()
+        private static void ConsumeCommitAll(Consumer<long, string> consumer)
         {
             var start = DateTime.Now;
 
-            var consumer = CreateConsumer<long, string>(autoCommit: false);
-
-            Thread.Sleep(SleepMilliseconds);
-
             var messages = new List<Message<long, string>>();
 
-            while (consumer.Consume(out var message, TimeSpan.FromSeconds(10)))
+            while (consumer.Consume(out var message, ConsumeTimeout))
             {
-                Log.Debug("Message received ({0})", message.TopicPartitionOffset);
-                Log.Verbose("\tKey: {0}", message.Key);
-                Log.Verbose("\tValue: {0}", message.Value);
+                Print(message);
 
                 consumer.CommitAsync(message).Wait();
             }
@@ -81,17 +88,13 @@ namespace KafkaPlayground.Legacy.Subscriber
             Log.Information("{0}: {1} messages consumed, elapsed {2}", nameof(ConsumeCommitAll), messages.Count, DateTime.Now.Subtract(start));
         }
 
-        private static void ConsumeCommitLast()
+        private static void ConsumeCommitLast(Consumer<long, string> consumer)
         {
             var start = DateTime.Now;
 
-            var consumer = CreateConsumer<long, string>(autoCommit: false);
-
-            Thread.Sleep(SleepMilliseconds);
-
             var messages = new List<Message<long, string>>();
 
-            while (consumer.Consume(out var message, TimeSpan.FromSeconds(10)))
+            while (consumer.Consume(out var message, ConsumeTimeout))
             {
                 if (message.Error.HasError)
                 {
@@ -99,14 +102,15 @@ namespace KafkaPlayground.Legacy.Subscriber
                     continue;
                 }
 
-                Log.Debug("Message received ({0})", message.TopicPartitionOffset);
-                Log.Verbose("\tKey: {0}", message.Key);
-                Log.Verbose("\tValue: {0}", message.Value);
+                Print(message);
 
                 messages.Add(message);
             }
 
-            Log.Information("{0}: {1} messages consumed, elapsed {2}", nameof(ConsumeCommitLast), messages.Count, DateTime.Now.Subtract(start));
+            Log.Debug("{0}: {1} messages consumed, elapsed {2}", nameof(ConsumeCommitLast), messages.Count, DateTime.Now.Subtract(start));
+
+            if (messages.Count == 0)
+                return;
 
             start = DateTime.Now;
 
@@ -116,24 +120,18 @@ namespace KafkaPlayground.Legacy.Subscriber
                 {
                     var higherOffset = messagesPerPartition.OrderByDescending(m => m.Offset.Value).First();
 
-                    consumer.CommitAsync(higherOffset);
+                    consumer.CommitAsync(higherOffset).Wait();
                 }
             }
 
             Log.Information("{0}: Committing {1} messages, elapsed {2}", nameof(ConsumeCommitLast), messages.Count, DateTime.Now.Subtract(start));
         }
 
-        private static Consumer<TKey, TValue> CreateConsumer<TKey, TValue>(bool autoCommit)
+        private static Consumer<TKey, TValue> CreateConsumer<TKey, TValue>(bool enableAutoCommit)
         {
             Log.Information("Creating consumer");
 
-            var consumerJson = File.ReadAllText("legacy.consumer.json");
-
-            var config = JsonConvert.DeserializeObject<Dictionary<string, object>>(consumerJson);
-
-            config["enable.auto.commit"] = autoCommit;
-
-            var consumer = new Consumer<TKey, TValue>(config, new AvroDeserializer<TKey>(), new AvroDeserializer<TValue>());
+            var consumer = new Consumer<TKey, TValue>(CreateConsumerConfig(enableAutoCommit), new AvroDeserializer<TKey>(), new AvroDeserializer<TValue>());
 
             consumer.OnConsumeError += (_, error) => Console.WriteLine($"[CONSUMER ERROR] Code: {error.Error.Code}, Reason: {error.Error.Reason}");
             consumer.OnError += (_, error) => Console.WriteLine($"[ERROR] Code: {error.Code}, Reason: {error.Reason}");
@@ -142,11 +140,28 @@ namespace KafkaPlayground.Legacy.Subscriber
 
             Log.Information("Consumer created");
 
-            consumer.Subscribe(Topics);
+            consumer.Subscribe(Topic);
 
-            Log.Information("Subscribed to: {0}", string.Join(',', Topics));
+            Log.Information("Subscribed to: {0}", Topic);
 
             return consumer;
         }
+
+        private static IDictionary<string, object> CreateConsumerConfig(bool enableAutoCommit)
+        {
+            var consumerJson = File.ReadAllText("legacy.consumer.json");
+
+            var config = JsonConvert.DeserializeObject<Dictionary<string, object>>(consumerJson);
+
+            config["enable.auto.commit"] = enableAutoCommit;
+            config["group.id"] = nameof(LegacySubscriber);
+
+            config.ToList().ForEach(i => Log.Information("{0}[{1}]: {2}", "Config", i.Key, i.Value));
+
+            return config;
+        }
+
+        private static void Print<TKey, TValue>(Message<TKey, TValue> consumeResult) =>
+            Log.Debug("Message received ({0}) - [{1}]: {2}", consumeResult.TopicPartitionOffset, consumeResult.Key, consumeResult.Value);
     }
 }

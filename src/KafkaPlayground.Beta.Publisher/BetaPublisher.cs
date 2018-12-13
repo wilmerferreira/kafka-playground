@@ -1,7 +1,6 @@
 ﻿using Confluent.Kafka;
 using Confluent.Kafka.Serialization;
 using Confluent.SchemaRegistry;
-using KafkaPlayground.Beta.Messages;
 using Newtonsoft.Json;
 using Serilog;
 using Serilog.Core;
@@ -11,6 +10,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using KafkaPlayground.Common;
 
 namespace KafkaPlayground.Beta.Publisher
 {
@@ -19,20 +19,22 @@ namespace KafkaPlayground.Beta.Publisher
         private static readonly ILogger Log = new LoggerConfiguration()
             .MinimumLevel.ControlledBy(new LoggingLevelSwitch
             {
-                MinimumLevel = LogEventLevel.Verbose
+                MinimumLevel = LogEventLevel.Information
             })
             .WriteTo.Console()
             .CreateLogger();
 
-        static void Main(string[] args)
+        private const string Topic = Topics.DefaultTopic;
+
+        static void Main()
         {
             Console.Title = AppDomain.CurrentDomain.FriendlyName;
 
             //SendOne();
-            //SendMany(1000);
-            BulkSend(1000);
+            SendMany(5000);
+            BulkSend(5000);
 
-            Console.ReadKey();
+            //Console.ReadKey();
         }
 
         private static void SendOne()
@@ -48,7 +50,7 @@ namespace KafkaPlayground.Beta.Publisher
             };
 
             var task = producer
-                .ProduceAsync(BetaTopics.Test, message)
+                .ProduceAsync(Topic, message)
                 .ContinueWith(LogDeliveryReport);
 
             task.Wait();
@@ -73,11 +75,10 @@ namespace KafkaPlayground.Beta.Publisher
                     Value = new Random().Next().ToString()
                 };
 
-                var task = producer
-                    .ProduceAsync(BetaTopics.Test, message)
-                    .ContinueWith(LogDeliveryReport);
-
-                task.Wait();
+                producer
+                    .ProduceAsync(Topic, message)
+                    .ContinueWith(LogDeliveryReport)
+                    .Wait();
             }
 
             Log.Information("{0}: {1} message(s) sent, elapsed time {2}", nameof(SendMany), quantity, DateTime.Now.Subtract(start));
@@ -104,7 +105,7 @@ namespace KafkaPlayground.Beta.Publisher
                     };
 
                     return producer
-                        .ProduceAsync(BetaTopics.Test, message)
+                        .ProduceAsync(Topic, message)
                         .ContinueWith(LogDeliveryReport);
                 })
                 .ToArray();

@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using KafkaPlayground.Common;
 
 namespace KafkaPlayground.Legacy.Publisher
 {
@@ -22,7 +23,7 @@ namespace KafkaPlayground.Legacy.Publisher
             .WriteTo.Console()
             .CreateLogger();
 
-        private const string Topic = "kafka.playground.legacy.test";
+        private const string Topic = Topics.DefaultTopic;
 
         private static void Main(string[] args)
         {
